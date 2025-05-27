@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Posts and Users</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+        .container {
+            display: flex;
+            gap: 30px;
+        }
+        .posts-container, .users-container {
+            flex: 1;
+        }
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .card-header {
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #333;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 8px;
+        }
+        .card-title {
+            font-size: 16px;
+            margin-bottom: 8px;
+            color: #444;
+        }
+        .card-body {
+            color: #666;
+            line-height: 1.5;
+        }
+        .user-card {
+            cursor: pointer;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #f5f5f5;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        .user-card:hover {
+            background-color: #e0e0e0;
+        }
+        .user-posts {
+            margin-top: 15px;
+            padding-left: 20px;
+            border-left: 2px solid #ddd;
+        }
+        .toggle-view {
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        .toggle-view:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <button id="toggleView" class="toggle-view">Переключить на список пользователей</button>
+    
+    <div class="container">
+        <div id="postsView" class="posts-container">
+            <h2>Все посты</h2>
+            <div id="postsContainer"></div>
+        </div>
+        
+        <div id="usersView" class="users-container" style="display: none;">
+            <h2>Список пользователей</h2>
+            <div id="usersContainer"></div>
+        </div>
+    </div>
+
+    <script>
+        // Загрузка данных
+        let users = [];
+        let posts = [];
+        let currentView = 'posts';
+
+        async function loadData() {
+            try {
+                const [usersResponse, postsResponse] = await Promise.all([
+                    fetch('https://jsonplaceholder.typicode.com/users'),
+                    fetch('https://jsonplaceholder.typicode.com/posts')
+                ]);
+                
+                users = await usersResponse.json();
+                posts = await postsResponse.json();
+                
+                renderPosts();
+                renderUsers();
+            } catch (error) {
+                console.error('Error loading data:', error);
+                alert('Failed to load data. Please try again later.');
+            }
+        }
+
+        // Рендер всех постов
+        function renderPosts() {
+            const container = document.getElementById('postsContainer');
+            container.innerHTML = '';
+            
+            posts.forEach(post => {
+                const user = users.find(u => u.id === post.userId);
+                const userName = user ? user.name : 'Unknown User';
+                
+                const card = document.createElement('div');
+                card.className = 'card';
+                
+                card.innerHTML = `
+                    <div class="card-header">Автор: ${userName}</div>
+                    <div class="card-title">${post.title}</div>
+                    <div class="card-body">${post.body}</div>
+                `;
+                
+                container.appendChild(card);
+            });
+        }
+
+        // Рендер списка пользователей
+        function renderUsers() {
+            const container = document.getElementById('usersContainer');
+            container.innerHTML = '';
+            
+            users.forEach(user => {
+                const userCard = document.createElement('div');
+                userCard.className = 'user-card';
+                userCard.textContent = user.name;
+                
+                userCard.addEventListener('click', () => {
+                    showUserPosts(user.id);
+                });
+                
+                container.appendChild(userCard);
+            });
+        }
+
+        // Показать посты конкретного пользователя
+        function showUserPosts(userId) {
+            const userPosts = posts.filter(post => post.userId === userId);
+            const user = users.find(u => u.id === userId);
+            const container = document.getElementById('usersContainer');
+            
+            // Очищаем предыдущие выделения
+            document.querySelectorAll('.user-card').forEach(card => {
+                card.style.backgroundColor = '#f5f5f5';
+            });
+            
+            // Подсвечиваем выбранного пользователя
+            const userCards = document.querySelectorAll('.user-card');
+            const selectedCard = Array.from(userCards).find(card => 
+                card.textContent === user.name
+            );
+            if (selectedCard) {
+                selectedCard.style.backgroundColor = '#d4edff';
+            }
+            
+            // Удаляем старые посты
+            const oldPosts = document.querySelectorAll('.user-posts');
+            oldPosts.forEach(post => post.remove());
+            
+            if (userPosts.length > 0) {
+                const postsContainer = document.createElement('div');
+                postsContainer.className = 'user-posts';
+                
+                userPosts.forEach(post => {
+                    const postElement = document.createElement('div');
+                    postElement.className = 'card';
+                    postElement.innerHTML = `
+                        <div class="card-title">${post.title}</div>
+                        <div class="card-body">${post.body}</div>
+                    `;
+                    postsContainer.appendChild(postElement);
+                });
+                
+                selectedCard.insertAdjacentElement('afterend', postsContainer);
+            }
+        }
+
+        // Переключение между видами
+        document.getElementById('toggleView').addEventListener('click', () => {
+            if (currentView === 'posts') {
+                document.getElementById('postsView').style.display = 'none';
+                document.getElementById('usersView').style.display = 'block';
+                document.getElementById('toggleView').textContent = 'Переключить на все посты';
+                currentView = 'users';
+            } else {
+                document.getElementById('postsView').style.display = 'block';
+                document.getElementById('usersView').style.display = 'none';
+                document.getElementById('toggleView').textContent = 'Переключить на список пользователей';
+                currentView = 'posts';
+            }
+        });
+
+        // Загружаем данные при старте
+        loadData();
+    </script>
+</body>
+</html>
